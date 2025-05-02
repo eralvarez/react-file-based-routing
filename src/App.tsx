@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import React from 'react';
+import React, { PropsWithChildren, useMemo } from 'react';
 
-// const pages = import.meta.glob('./pages/**/*.tsx');
 const _pages = import.meta.glob(['./pages/**/*.tsx', '!./pages/**/layout.tsx']);
-const _layouts = import.meta.glob('./pages/**/layout.tsx');
+const _layouts = import.meta.glob<{
+  default: React.ComponentType<PropsWithChildren>;
+}>('./pages/**/layout.tsx');
 
-console.log('pages', _pages);
-console.log('layouts', _layouts);
+console.log(_pages);
+console.log(_layouts);
 
 function pathToRoute(filePath: string) {
   let route =
@@ -35,27 +36,65 @@ function pathToRoute(filePath: string) {
 }
 
 function getLayouts(path: string) {
-  console.log('getLayouts', path);
+  const layouts: string[] = [];
+  const pathSections = path.split('/');
+  pathSections.pop();
+  const pathWithoutFilename = pathSections.join('/');
 
-  return null;
+  const splittedPathWithoutFilename = pathWithoutFilename.split('/');
+
+  splittedPathWithoutFilename.reduce((acc, pathSection) => {
+    const currentPath = acc === '' ? pathSection : `${acc}/${pathSection}`;
+    const layoutPath = `${currentPath}/layout.tsx`;
+    // console.log('currentPath:', currentPath);
+    // console.log('layoutPath:', layoutPath);
+    if (_layouts[layoutPath]) {
+      layouts.push(layoutPath);
+    }
+    return currentPath;
+  }, '');
+
+  return layouts;
+}
+
+function withLayouts(Component: React.ComponentType, layouts: string[]) {
+  return layouts.reverse().reduce(
+    (wrapped, layout) => {
+      console.log('layout:', layout);
+      const Layout = React.lazy(_layouts[layout]);
+      return <Layout>{wrapped}</Layout>;
+    },
+    <Component />
+  );
 }
 
 function App() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const routes = Object.entries(_pages).map(([path, loader]) => {
-    const routePath = pathToRoute(path);
-    const layouts = getLayouts(path);
-    console.log({
-      routePath,
-      path,
-      layouts,
-    });
-    const Component = React.lazy(
-      loader as () => Promise<{ default: React.ComponentType<unknown> }>
-    );
+  const routes = useMemo(
+    () =>
+      Object.entries(_pages).map(([path, loader]) => {
+        const routePath = pathToRoute(path);
+        console.group('Layouts for path:', path);
+        const layouts = getLayouts(path);
+        console.log(layouts);
+        console.groupEnd();
+        const Component = React.lazy(
+          loader as () => Promise<{ default: React.ComponentType<unknown> }>
+        );
 
-    return <Route key={routePath} path={routePath} element={<Component />} />;
-  });
+        const ElementWithLayouts = () => withLayouts(Component, layouts);
+        console.log('ElementWithLayouts:', ElementWithLayouts);
+        // return <ElementWithLayouts key={routePath} />;
+
+        return (
+          <Route
+            key={routePath}
+            path={routePath}
+            element={<ElementWithLayouts />}
+          />
+        );
+      }),
+    []
+  );
 
   return (
     <BrowserRouter>
