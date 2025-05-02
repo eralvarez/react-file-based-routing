@@ -1,6 +1,7 @@
-import { Link, Outlet } from 'react-router-dom';
+import { PropsWithChildren } from 'react';
+import { Link } from 'react-router-dom';
 
-export default function RootLayout() {
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <div>
       <nav>
@@ -19,9 +20,7 @@ export default function RootLayout() {
           </li>
         </ul>
       </nav>
-      <main>
-        <Outlet />
-      </main>
+      <main>{children}</main>
     </div>
   );
 }

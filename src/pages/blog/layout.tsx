@@ -1,12 +1,10 @@
-import { Outlet } from 'react-router-dom';
+import { PropsWithChildren } from 'react';
 
-export default function BlogLayout() {
+export default function BlogLayout({ children }: PropsWithChildren) {
   return (
     <div>
       <h1>Blog layout:</h1>
-      <div>
-        <Outlet />
-      </div>
+      <div>{children}</div>
     </div>
   );
 }
