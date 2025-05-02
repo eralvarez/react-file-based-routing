@@ -13,6 +13,9 @@ export default function RootLayout({ children }: PropsWithChildren) {
             <Link to="/about">About</Link>
           </li>
           <li>
+            <Link to="/contact">Contact</Link>
+          </li>
+          <li>
             <Link to="/blog/1">Blog Post 1</Link>
           </li>
           <li>
