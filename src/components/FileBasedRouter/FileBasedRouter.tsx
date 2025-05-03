@@ -12,18 +12,27 @@ function GenericLayout() {
   return <Outlet />;
 }
 
+function GenericLoading() {
+  return null;
+}
+
 const BASE_PAGES_PATH = '/src/pages';
 
 const _pages = import.meta.glob([
   `/src/pages/**/*.tsx`,
   '!/src/pages/**/layout.tsx',
+  '!/src/pages/**/loading.tsx',
 ]);
 const _layouts = import.meta.glob<{
   default: React.ComponentType<PropsWithChildren>;
 }>('/src/pages/**/layout.tsx');
+const _loading = import.meta.glob<{
+  default: React.ComponentType<PropsWithChildren>;
+}>('/src/pages/**/loading.tsx');
 
 // console.log(_pages);
 // console.log(_layouts);
+// console.log(_loading);
 
 function pathToRoute(filePath: string) {
   let route =
@@ -76,6 +85,22 @@ const routes = (() => {
       .replace(`${BASE_PAGES_PATH}/`, '')
       .split('/');
     // console.log('splittedRoute', splittedRoute);
+    // console.log('currentRoute', currentRoute);
+    const routeWithoutFile = splittedRoute.slice(0, -1).join('/');
+    // console.log('routeWithoutFile', routeWithoutFile);
+    // console.log(
+    //   'loading currentRoute2',
+    //   `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`
+    // );
+    const loadingFilePath = `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`;
+
+    const isLoadingComponentCreated = !!_loading[loadingFilePath];
+
+    // console.log({ isLoadingComponentCreated });
+
+    const LoadingComponent = isLoadingComponentCreated
+      ? React.lazy(_loading[loadingFilePath])
+      : GenericLoading;
 
     let currentChildren = _routes[0].children;
 
@@ -86,7 +111,7 @@ const routes = (() => {
         currentChildren?.push({
           index: true,
           element: (
-            <React.Suspense fallback={<div>Loading...</div>}>
+            <React.Suspense fallback={<LoadingComponent />}>
               <Component />
             </React.Suspense>
           ),
@@ -95,7 +120,7 @@ const routes = (() => {
         currentChildren?.push({
           path: currentRoute,
           element: (
-            <React.Suspense fallback={<div>Loading...</div>}>
+            <React.Suspense fallback={<LoadingComponent />}>
               <Component />
             </React.Suspense>
           ),
@@ -115,7 +140,7 @@ const routes = (() => {
             currentChildren?.push({
               index: true,
               element: (
-                <React.Suspense fallback={<div>Loading...</div>}>
+                <React.Suspense fallback={<LoadingComponent />}>
                   <CurrentComponent />
                 </React.Suspense>
               ),
@@ -124,7 +149,7 @@ const routes = (() => {
             currentChildren?.push({
               path: currentRoute.split('/').pop(),
               element: (
-                <React.Suspense fallback={<div>Loading...</div>}>
+                <React.Suspense fallback={<LoadingComponent />}>
                   <CurrentComponent />
                 </React.Suspense>
               ),
@@ -155,7 +180,11 @@ const routes = (() => {
               : GenericLayout;
             const _children = {
               path: routeOrFile,
-              element: <Layout children={<Outlet />} />,
+              element: (
+                <React.Suspense fallback={<LoadingComponent />}>
+                  <Layout children={<Outlet />} />
+                </React.Suspense>
+              ),
               children: [],
             };
             currentChildren?.push(_children);
@@ -163,7 +192,7 @@ const routes = (() => {
           }
         }
 
-        console.groupEnd();
+        // console.groupEnd();
       }
     }
   }
@@ -173,12 +202,13 @@ const routes = (() => {
   return _routes;
 })();
 
+const browserRouter = createBrowserRouter(routes);
+
 export default function FileBasedRouter() {
-  const router = createBrowserRouter(routes ?? []);
-
-  // console.log('router', routes);
-
   return (
-    <RouterProvider router={router} fallbackElement={<div>Loading...</div>} />
+    <RouterProvider
+      router={browserRouter}
+      // fallbackElement={<div>Loading2...</div>}
+    />
   );
 }
