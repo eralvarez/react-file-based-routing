@@ -12,22 +12,23 @@ function GenericLayout() {
   return <Outlet />;
 }
 
-// const BASE_PAGES_PATH = '../../pages';
+const BASE_PAGES_PATH = '/src/pages';
 
-const PAGES = import.meta.glob([`/src/pages/**/*.tsx`]);
-const _pages = import.meta.glob([`../../pages/**/*.tsx`, '!../../pages/**/layout.tsx']);
+const _pages = import.meta.glob([
+  `/src/pages/**/*.tsx`,
+  '!/src/pages/**/layout.tsx',
+]);
 const _layouts = import.meta.glob<{
   default: React.ComponentType<PropsWithChildren>;
-}>('../../pages/**/layout.tsx');
+}>('/src/pages/**/layout.tsx');
 
-console.log(PAGES);
 // console.log(_pages);
 // console.log(_layouts);
 
 function pathToRoute(filePath: string) {
   let route =
     filePath
-      .replace('../../pages', '')
+      .replace(BASE_PAGES_PATH, '')
       .replace(/\.tsx$/, '')
       .replace(/\[([^\]]+)\]/g, ':$1') || '/';
 
@@ -52,8 +53,8 @@ function pathToRoute(filePath: string) {
 
 type LazyPromise = () => Promise<{ default: React.ComponentType<unknown> }>;
 
-const RootLayout = _layouts['../../pages/layout.tsx']
-  ? React.lazy(_layouts['../../pages/layout.tsx'])
+const RootLayout = _layouts[`${BASE_PAGES_PATH}/layout.tsx`]
+  ? React.lazy(_layouts[`${BASE_PAGES_PATH}/layout.tsx`])
   : GenericLayout;
 
 const routes = (() => {
@@ -71,7 +72,9 @@ const routes = (() => {
 
     const Component = React.lazy(_pages[pageFile] as LazyPromise);
 
-    const splittedRoute = pageFile.replace('../../pages/', '').split('/');
+    const splittedRoute = pageFile
+      .replace(`${BASE_PAGES_PATH}/`, '')
+      .split('/');
     // console.log('splittedRoute', splittedRoute);
 
     let currentChildren = _routes[0].children;
@@ -143,8 +146,12 @@ const routes = (() => {
             });
             currentChildren = lastChildren?.children;
           } else {
-            const Layout = _layouts[`../../pages${carriedPath}/layout.tsx`]
-              ? React.lazy(_layouts[`../../pages${carriedPath}/layout.tsx`])
+            const Layout = _layouts[
+              `${BASE_PAGES_PATH}${carriedPath}/layout.tsx`
+            ]
+              ? React.lazy(
+                  _layouts[`${BASE_PAGES_PATH}${carriedPath}/layout.tsx`]
+                )
               : GenericLayout;
             const _children = {
               path: routeOrFile,
