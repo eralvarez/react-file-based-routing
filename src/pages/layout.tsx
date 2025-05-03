@@ -24,6 +24,9 @@ export default function RootLayout({ children }: PropsWithChildren) {
           <li>
             <Link to="/blog/2">Blog Post 2</Link>
           </li>
+          <li>
+            <Link to="/very/deep/route">Very deep route</Link>
+          </li>
         </ul>
       </nav>
       <main>{children}</main>

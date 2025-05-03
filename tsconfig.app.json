@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./src",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -20,7 +21,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "paths": {
+      "*": ["./*"],
+      // "@assets/*": ["./src/assets/*"],
+      // "@components/*": ["./src/components/*"],
+      // "@hooks/*": ["./src/hooks/*"],
+      // "@lib/*": ["./src/lib/*"],
+      // "@pages/*": ["./src/pages/*"],
+      // "@styles/*": ["./src/styles/*"],
+      // "@types/*": ["./src/types/*"],
+      // "@utils/*": ["./src/utils/*"]
+    }
   },
   "include": ["src"]
 }
