@@ -1,7 +1,7 @@
 export default function Page() {
   return (
     <div>
-      <span>Contact page</span>
+      <span>Me page</span>
     </div>
   );
 }
