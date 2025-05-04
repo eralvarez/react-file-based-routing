@@ -24,32 +24,42 @@ function GenericErrorBoundaryPlaceholder() {
 function DataLoaderComponent({
   Component,
   LoadingComponent,
-  dataFunction,
+  // dataFunction,
+  dataFunctionImportModule,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Component: React.ComponentType<any>;
   LoadingComponent: React.ComponentType;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dataFunction: any;
+  // dataFunction?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dataFunctionImportModule: any;
 }) {
   const [data, setData] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    dataFunction()
-      .then((data: unknown) => {
-        // console.log('Data loaded:', data);
-        setData(data);
-        setLoading(false);
-      })
+    const loadData = async () => {
+      setLoading(true);
+      const dataFunctionModule = await dataFunctionImportModule;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .catch((error: any) => {
-        setError(error);
-        setLoading(false);
-      });
-  }, [dataFunction]);
+      const dataFunction = dataFunctionModule.default as any;
+      dataFunction()
+        .then((data: unknown) => {
+          // console.log('Data loaded:', data);
+          setData(data);
+          setLoading(false);
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .catch((error: any) => {
+          setError(error);
+          setLoading(false);
+        });
+    };
+
+    loadData();
+  }, []);
 
   if (loading) {
     return <LoadingComponent />;
@@ -134,7 +144,7 @@ const RootErrorBoundary = hasRootError
 
 // console.log('hasRootError', hasRootError);
 
-const routes = async () => {
+const routes = () => {
   const _routes: RouteObject[] = [
     {
       path: '/',
@@ -180,16 +190,16 @@ const routes = async () => {
     const dataFunctionImportModule = isDataFunctionComponentSet
       ? _data[dataFunctionFilePath]()
       : null;
-    let dataFunction = null;
+    // let dataFunction = null;
     // React.lazy(_data[dataFunctionFilePath])
     // _data[dataFunctionFilePath]()
 
     if (dataFunctionImportModule !== null) {
       // console.log('dataFunction', _dataFunction);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dataFunctionModule = await dataFunctionImportModule;
+      // const dataFunctionModule = await dataFunctionImportModule;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dataFunction = dataFunctionModule.default as any;
+      // dataFunction = dataFunctionModule.default as any;
       // const response = await dataFunction();
       // console.log('Data loaded:', response);
       // _dataFunction.then((data: any) => {
@@ -214,7 +224,8 @@ const routes = async () => {
                 <DataLoaderComponent
                   Component={Component}
                   LoadingComponent={LoadingComponent}
-                  dataFunction={dataFunction}
+                  // dataFunction={dataFunction}
+                  dataFunctionImportModule={dataFunctionImportModule}
                 />
               ) : (
                 <Component />
@@ -231,7 +242,7 @@ const routes = async () => {
                 <DataLoaderComponent
                   Component={Component}
                   LoadingComponent={LoadingComponent}
-                  dataFunction={dataFunction}
+                  dataFunctionImportModule={dataFunctionImportModule}
                 />
               ) : (
                 <Component />
@@ -329,7 +340,7 @@ const routes = async () => {
   return _routes;
 };
 
-const browserRouter = createBrowserRouter(await routes());
+const browserRouter = createBrowserRouter(routes());
 
 export default function FileBasedRouter() {
   return <RouterProvider router={browserRouter} />;
