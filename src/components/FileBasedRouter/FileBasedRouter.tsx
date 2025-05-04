@@ -24,16 +24,11 @@ function GenericErrorBoundaryPlaceholder() {
 function DataLoaderComponent({
   Component,
   LoadingComponent,
-  // dataFunction,
   dataFunctionImportModule,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Component: React.ComponentType<any>;
+  Component: React.ComponentType<{ initialData: unknown }>;
   LoadingComponent: React.ComponentType;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // dataFunction?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dataFunctionImportModule: any;
+  dataFunctionImportModule: Promise<{ default: () => Promise<unknown> }> | null;
 }) {
   const [data, setData] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(true);
@@ -41,25 +36,23 @@ function DataLoaderComponent({
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
-      const dataFunctionModule = await dataFunctionImportModule;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dataFunction = dataFunctionModule.default as any;
-      dataFunction()
-        .then((data: unknown) => {
-          // console.log('Data loaded:', data);
-          setData(data);
-          setLoading(false);
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .catch((error: any) => {
-          setError(error);
-          setLoading(false);
-        });
+      try {
+        setLoading(true);
+        if (dataFunctionImportModule) {
+          const dataFunctionModule = await dataFunctionImportModule;
+          const dataFunction = dataFunctionModule.default;
+          const result = await dataFunction();
+          setData(result);
+        }
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();
-  }, []);
+  }, [dataFunctionImportModule]);
 
   if (loading) {
     return <LoadingComponent />;
@@ -70,10 +63,6 @@ function DataLoaderComponent({
   if (data) {
     return <Component initialData={data} />;
   }
-
-  // If no data, return null or a fallback UI
-  // You can also throw an error if you want to handle it in an error boundary
-  // throw new Error('No data available');
 
   return null;
 }
@@ -100,35 +89,13 @@ const _data = import.meta.glob<{
   default: React.ComponentType<PropsWithChildren>;
 }>('/src/pages/**/data.ts');
 
-// console.log(_pages);
-// console.log(_layouts);
-// console.log(_loading);
-// console.log(_data);
-
 function pathToRoute(filePath: string) {
-  let route =
-    filePath
-      .replace(BASE_PAGES_PATH, '')
-      .replace(/\.tsx$/, '')
-      .replace(/\[([^\]]+)\]/g, ':$1') || '/';
-
-  if (route.endsWith('/index')) {
-    route = route.replace(/\/index$/, '');
-  }
-
-  if (route === '') {
-    route = '/';
-  }
-
-  if (route.endsWith('/')) {
-    route = route.slice(0, -1);
-  }
-
-  if (route === '/index') {
-    route = '/';
-  }
-
-  return route;
+  return filePath
+    .replace(BASE_PAGES_PATH, '')
+    .replace(/\.tsx$/, '')
+    .replace(/\[([^\]]+)\]/g, ':$1')
+    .replace(/\/index$/, '')
+    .replace(/\/$/, '') || '/';
 }
 
 type LazyPromise = () => Promise<{ default: React.ComponentType<unknown> }>;
@@ -141,8 +108,6 @@ const hasRootError = Boolean(_error[`${BASE_PAGES_PATH}/error.tsx`]);
 const RootErrorBoundary = hasRootError
   ? React.lazy(_error[`${BASE_PAGES_PATH}/error.tsx`])
   : GenericErrorBoundaryPlaceholder;
-
-// console.log('hasRootError', hasRootError);
 
 const routes = () => {
   const _routes: RouteObject[] = [
@@ -161,61 +126,30 @@ const routes = () => {
 
   for (const pageFile of Object.keys(_pages)) {
     const currentRoute = pathToRoute(pageFile);
-    // console.log({ pageFile, currentRoute });
 
     const Component = React.lazy(_pages[pageFile] as LazyPromise);
 
     const splittedRoute = pageFile
       .replace(`${BASE_PAGES_PATH}/`, '')
       .split('/');
-    // console.log('splittedRoute', splittedRoute);
-    // console.log('currentRoute', currentRoute);
     const routeWithoutFile = splittedRoute.slice(0, -1).join('/');
-    // console.log('routeWithoutFile', routeWithoutFile);
-    // console.log(
-    //   'loading currentRoute2',
-    //   `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`
-    // );
     const loadingFilePath = `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`;
     const dataFunctionFilePath = `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/data.ts`;
 
     const isLoadingComponentCreated = Boolean(_loading[loadingFilePath]);
     const isDataFunctionComponentSet = Boolean(_data[dataFunctionFilePath]);
 
-    // console.log({ isLoadingComponentCreated });
-
     const LoadingComponent = isLoadingComponentCreated
       ? React.lazy(_loading[loadingFilePath])
       : GenericLoading;
     const dataFunctionImportModule = isDataFunctionComponentSet
-      ? _data[dataFunctionFilePath]()
+      ? (_data[dataFunctionFilePath]() as Promise<{ default: () => Promise<unknown> }>)
       : null;
-    // let dataFunction = null;
-    // React.lazy(_data[dataFunctionFilePath])
-    // _data[dataFunctionFilePath]()
-
-    if (dataFunctionImportModule !== null) {
-      // console.log('dataFunction', _dataFunction);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      // const dataFunctionModule = await dataFunctionImportModule;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      // dataFunction = dataFunctionModule.default as any;
-      // const response = await dataFunction();
-      // console.log('Data loaded:', response);
-      // _dataFunction.then((data: any) => {
-      //   console.log('module:', data);
-      //   data.default().then((response: unknown) => {
-      //     console.log('Data loaded:', response);
-      //   });
-      // });
-    }
 
     let currentChildren = _routes[0].children;
 
     if (splittedRoute.length === 1) {
-      // is index.tsx
       if (splittedRoute[0] === 'index.tsx') {
-        // is index.tsx, no layout
         currentChildren?.push({
           index: true,
           element: (
@@ -224,7 +158,6 @@ const routes = () => {
                 <DataLoaderComponent
                   Component={Component}
                   LoadingComponent={LoadingComponent}
-                  // dataFunction={dataFunction}
                   dataFunctionImportModule={dataFunctionImportModule}
                 />
               ) : (
@@ -254,12 +187,7 @@ const routes = () => {
     } else {
       let carriedPath = '';
       for (const routeOrFile of splittedRoute) {
-        // console.group('More: ', pageFile);
-        // console.log('route', routeOrFile);
-        // console.log('carriedPath', carriedPath);
         if (routeOrFile.endsWith('.tsx')) {
-          // is file
-          // const fileName = routeOrFile.replace('.tsx', '');
           const CurrentComponent = React.lazy(_pages[pageFile] as LazyPromise);
           if (routeOrFile === 'index.tsx') {
             currentChildren?.push({
@@ -282,13 +210,10 @@ const routes = () => {
           }
         } else {
           carriedPath += `/${routeOrFile}`;
-          // console.log(`./pages${carriedPath}/layout.tsx`);
 
           const isLayoutCreated = currentChildren?.some(child => {
             return child.path === carriedPath;
           });
-
-          // console.log({ isLayoutCreated });
 
           if (isLayoutCreated) {
             const lastChildren = currentChildren?.find(child => {
@@ -329,14 +254,10 @@ const routes = () => {
             currentChildren = _children.children;
           }
         }
-
-        // console.groupEnd();
       }
     }
   }
 
-  // console.log('All routes:');
-  // console.log(_routes);
   return _routes;
 };
 
