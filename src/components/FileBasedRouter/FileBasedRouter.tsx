@@ -1,6 +1,6 @@
 // https://reactrouter.com/6.30.0/start/overview
 
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useEffect } from 'react';
 import {
   RouterProvider,
   createBrowserRouter,
@@ -21,6 +21,53 @@ function GenericErrorBoundaryPlaceholder() {
   return null;
 }
 
+function DataLoaderComponent({
+  Component,
+  LoadingComponent,
+  dataFunction,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Component: React.ComponentType<any>;
+  LoadingComponent: React.ComponentType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dataFunction: any;
+}) {
+  const [data, setData] = React.useState<unknown>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<Error | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    dataFunction()
+      .then((data: unknown) => {
+        // console.log('Data loaded:', data);
+        setData(data);
+        setLoading(false);
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .catch((error: any) => {
+        setError(error);
+        setLoading(false);
+      });
+  }, [dataFunction]);
+
+  if (loading) {
+    return <LoadingComponent />;
+  }
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  }
+  if (data) {
+    return <Component initialData={data} />;
+  }
+
+  // If no data, return null or a fallback UI
+  // You can also throw an error if you want to handle it in an error boundary
+  // throw new Error('No data available');
+
+  return null;
+}
+
 const BASE_PAGES_PATH = '/src/pages';
 
 const _pages = import.meta.glob([
@@ -28,6 +75,7 @@ const _pages = import.meta.glob([
   '!/src/pages/**/layout.tsx',
   '!/src/pages/**/loading.tsx',
   '!/src/pages/**/error.tsx',
+  '!/src/pages/**/data.ts',
 ]);
 const _layouts = import.meta.glob<{
   default: React.ComponentType<PropsWithChildren>;
@@ -38,10 +86,14 @@ const _loading = import.meta.glob<{
 const _error = import.meta.glob<{
   default: React.ComponentType<PropsWithChildren>;
 }>('/src/pages/**/error.tsx');
+const _data = import.meta.glob<{
+  default: React.ComponentType<PropsWithChildren>;
+}>('/src/pages/**/data.ts');
 
 // console.log(_pages);
 // console.log(_layouts);
 // console.log(_loading);
+// console.log(_data);
 
 function pathToRoute(filePath: string) {
   let route =
@@ -82,7 +134,7 @@ const RootErrorBoundary = hasRootError
 
 // console.log('hasRootError', hasRootError);
 
-const routes = (() => {
+const routes = async () => {
   const _routes: RouteObject[] = [
     {
       path: '/',
@@ -115,14 +167,38 @@ const routes = (() => {
     //   `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`
     // );
     const loadingFilePath = `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/loading.tsx`;
+    const dataFunctionFilePath = `${BASE_PAGES_PATH}${routeWithoutFile ? `/${routeWithoutFile}` : `${routeWithoutFile}`}/data.ts`;
 
-    const isLoadingComponentCreated = !!_loading[loadingFilePath];
+    const isLoadingComponentCreated = Boolean(_loading[loadingFilePath]);
+    const isDataFunctionComponentSet = Boolean(_data[dataFunctionFilePath]);
 
     // console.log({ isLoadingComponentCreated });
 
     const LoadingComponent = isLoadingComponentCreated
       ? React.lazy(_loading[loadingFilePath])
       : GenericLoading;
+    const dataFunctionImportModule = isDataFunctionComponentSet
+      ? _data[dataFunctionFilePath]()
+      : null;
+    let dataFunction = null;
+    // React.lazy(_data[dataFunctionFilePath])
+    // _data[dataFunctionFilePath]()
+
+    if (dataFunctionImportModule !== null) {
+      // console.log('dataFunction', _dataFunction);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dataFunctionModule = await dataFunctionImportModule;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dataFunction = dataFunctionModule.default as any;
+      // const response = await dataFunction();
+      // console.log('Data loaded:', response);
+      // _dataFunction.then((data: any) => {
+      //   console.log('module:', data);
+      //   data.default().then((response: unknown) => {
+      //     console.log('Data loaded:', response);
+      //   });
+      // });
+    }
 
     let currentChildren = _routes[0].children;
 
@@ -134,7 +210,15 @@ const routes = (() => {
           index: true,
           element: (
             <React.Suspense fallback={<LoadingComponent />}>
-              <Component />
+              {isDataFunctionComponentSet ? (
+                <DataLoaderComponent
+                  Component={Component}
+                  LoadingComponent={LoadingComponent}
+                  dataFunction={dataFunction}
+                />
+              ) : (
+                <Component />
+              )}
             </React.Suspense>
           ),
         });
@@ -143,7 +227,15 @@ const routes = (() => {
           path: currentRoute,
           element: (
             <React.Suspense fallback={<LoadingComponent />}>
-              <Component />
+              {isDataFunctionComponentSet ? (
+                <DataLoaderComponent
+                  Component={Component}
+                  LoadingComponent={LoadingComponent}
+                  dataFunction={dataFunction}
+                />
+              ) : (
+                <Component />
+              )}
             </React.Suspense>
           ),
         });
@@ -235,9 +327,9 @@ const routes = (() => {
   // console.log('All routes:');
   // console.log(_routes);
   return _routes;
-})();
+};
 
-const browserRouter = createBrowserRouter(routes);
+const browserRouter = createBrowserRouter(await routes());
 
 export default function FileBasedRouter() {
   return <RouterProvider router={browserRouter} />;
