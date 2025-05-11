@@ -126,6 +126,9 @@ const routes = () => {
 
   for (const pageFile of Object.keys(_pages)) {
     const currentRoute = pathToRoute(pageFile);
+    // console.log('pageFile', pageFile);
+    // console.log('currentRoute', currentRoute);
+    // console.log(Array(20).fill('-').join(''));
 
     const Component = React.lazy(_pages[pageFile] as LazyPromise);
 
@@ -235,8 +238,9 @@ const routes = () => {
               ? React.lazy(_error[`${BASE_PAGES_PATH}${carriedPath}/error.tsx`])
               : GenericErrorBoundaryPlaceholder;
 
+            // console.log('routeOrFile', routeOrFile);
             const _children = {
-              path: routeOrFile,
+              path: pathToRoute(routeOrFile),
               element: hasError ? (
                 <ErrorBoundary fallback={<ErrorBoundaryComponent />}>
                   <React.Suspense fallback={<LoadingComponent />}>
